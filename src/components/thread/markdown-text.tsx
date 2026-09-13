@@ -60,6 +60,63 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   );
 };
 
+const getYouTubeVideoId = (url?: string) => {
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+
+    // https://www.youtube.com/watch?v=VIDEO_ID
+    if (
+      parsed.hostname === "www.youtube.com" ||
+      parsed.hostname === "youtube.com"
+    ) {
+      if (parsed.pathname === "/watch") {
+        return parsed.searchParams.get("v");
+      }
+
+      // https://www.youtube.com/embed/VIDEO_ID
+      if (parsed.pathname.startsWith("/embed/")) {
+        return parsed.pathname.split("/embed/")[1];
+      }
+
+      // https://www.youtube.com/shorts/VIDEO_ID
+      if (parsed.pathname.startsWith("/shorts/")) {
+        return parsed.pathname.split("/shorts/")[1];
+      }
+    }
+
+    // https://youtu.be/VIDEO_ID
+    if (parsed.hostname === "youtu.be") {
+      return parsed.pathname.slice(1);
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const YouTubeEmbed = ({
+  videoId,
+  title,
+}: {
+  videoId: string;
+  title: string;
+}) => {
+  return (
+    <div className="my-5 aspect-video w-full max-w-3xl overflow-hidden rounded-lg">
+      <iframe
+        src={`https://www.youtube.com/embed/${videoId}`}
+        title={title}
+        className="h-full w-full"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+      />
+    </div>
+  );
+};
+
 const defaultComponents: any = {
   h1: ({ className, ...props }: { className?: string }) => (
     <h1
@@ -118,15 +175,40 @@ const defaultComponents: any = {
       {...props}
     />
   ),
-  a: ({ className, ...props }: { className?: string }) => (
+a: ({
+  className,
+  href,
+  children,
+  ...props
+}: {
+  className?: string;
+  href?: string;
+  children?: React.ReactNode;
+}) => {
+  const videoId = getYouTubeVideoId(href);
+
+  if (videoId) {
+    return (
+      <YouTubeEmbed
+        videoId={videoId}
+        title={String(children ?? "YouTube video")}
+      />
+    );
+  }
+
+  return (
     <a
+      href={href}
       className={cn(
         "text-primary font-medium underline underline-offset-4",
         className,
       )}
       {...props}
-    />
-  ),
+    >
+      {children}
+    </a>
+  );
+},
   blockquote: ({ className, ...props }: { className?: string }) => (
     <blockquote
       className={cn("border-l-2 pl-6 italic", className)}
