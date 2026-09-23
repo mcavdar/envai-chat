@@ -1,5 +1,6 @@
 import { validate } from "uuid";
 import { getApiKey } from "@/lib/api-key";
+import { resolveApiUrl } from "@/lib/resolve-api-url";
 import { Thread } from "@langchain/langgraph-sdk";
 import { useQueryState } from "nuqs";
 import {
@@ -53,12 +54,12 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
   const { accessToken } = useAuth();
 
   const getThreads = useCallback(async (): Promise<Thread[]> => {
+    const finalApiUrl = resolveApiUrl(apiUrl, envApiUrl);
     const resolvedAssistantId = assistantId || envAssistantId;
-
-    if (!apiUrl || !resolvedAssistantId) return [];
+    if (!finalApiUrl || !resolvedAssistantId) return [];
     const client = createClient(
-      apiUrl,
-      getApiKey() ?? undefined,
+      finalApiUrl,
+      getApiKey(finalApiUrl) ?? undefined,
       authScheme || undefined,
       accessToken ?? undefined,
     );
@@ -82,13 +83,14 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
 
   const deleteThread = useCallback(
     async (threadId: string): Promise<void> => {
-      if (!apiUrl) {
+      const finalApiUrl = resolveApiUrl(apiUrl, envApiUrl);
+      if (!finalApiUrl) {
         throw new Error("LangGraph API URL is not configured.");
       }
 
       const client = createClient(
-        apiUrl,
-        getApiKey() ?? undefined,
+        finalApiUrl,
+        getApiKey(finalApiUrl) ?? undefined,
         authScheme || undefined,
         accessToken ?? undefined,
       );
@@ -98,7 +100,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         currentThreads.filter((thread) => thread.thread_id !== threadId),
       );
     },
-    [accessToken, apiUrl, authScheme],
+    [accessToken, apiUrl, envApiUrl, authScheme],
   );
 
   const value = {

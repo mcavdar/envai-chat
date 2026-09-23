@@ -112,6 +112,30 @@ function OpenGitHubRepo() {
   );
 }
 
+function ConnectedHost({ apiUrl }: { apiUrl: string }) {
+  let host: string;
+  try {
+    host = new URL(apiUrl).host;
+  } catch {
+    host = apiUrl;
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="text-muted-foreground hidden max-w-40 truncate text-xs sm:inline">
+            {host}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p>Connected to {apiUrl}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export function Thread() {
   const [artifactContext, setArtifactContext] = useArtifactContext();
   const [artifactOpen, closeArtifact] = useArtifactOpen();
@@ -378,6 +402,7 @@ export function Thread() {
                     Mento Chat
                   </span>
                 </motion.button>
+                <ConnectedHost apiUrl={stream.apiUrl} />
               </div>
 
               <div className="flex items-center gap-4">
