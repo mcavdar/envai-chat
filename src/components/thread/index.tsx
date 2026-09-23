@@ -2,9 +2,11 @@ import { v4 as uuidv4 } from "uuid";
 import { ReactNode, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useBearerToken, useStreamContext } from "@/providers/Stream";
+import { useStreamContext } from "@/providers/Stream";
+import { useAuth } from "@/providers/Auth";
 import { useState, FormEvent } from "react";
 import { Button } from "../ui/button";
+import { Label } from "../ui/label";
 import { Checkpoint, Message } from "@langchain/langgraph-sdk";
 import { AssistantMessage, AssistantMessageLoading } from "./messages/ai";
 import { HumanMessage } from "./messages/human";
@@ -20,25 +22,15 @@ import {
   PanelRightOpen,
   PanelRightClose,
   SquarePen,
-  KeyRound,
   XIcon,
   Plus,
+  LogOut,
 } from "lucide-react";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 import ThreadHistory from "./history";
 import { toast } from "sonner";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { Label } from "../ui/label";
-import { Switch } from "../ui/switch";
-import { PasswordInput } from "../ui/password-input";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "../ui/sheet";
 import { GitHubSVG } from "../icons/github";
 import {
   Tooltip,
@@ -133,8 +125,6 @@ export function Thread() {
     "hideToolCalls",
     parseAsBoolean.withDefault(false),
   );
-  const [bearerTokenSheetOpen, setBearerTokenSheetOpen] = useState(false);
-  const [bearerTokenInput, setBearerTokenInput] = useState("");
   const [input, setInput] = useState("");
   const {
     contentBlocks,
@@ -150,7 +140,7 @@ export function Thread() {
   const isLargeScreen = useMediaQuery("(min-width: 1024px)");
 
   const stream = useStreamContext();
-  const { bearerToken, setBearerToken } = useBearerToken();
+  const { signOut } = useAuth();
   const messages = stream.messages;
   const isLoading = stream.isLoading;
 
@@ -341,14 +331,11 @@ export function Thread() {
                 <TooltipIconButton
                   size="lg"
                   className="p-4"
-                  tooltip="Kullanıcı Anahtarı"
+                  tooltip="Sign out"
                   variant="ghost"
-                  onClick={() => {
-                    setBearerTokenInput(bearerToken);
-                    setBearerTokenSheetOpen(true);
-                  }}
+                  onClick={() => void signOut()}
                 >
-                  <KeyRound className="size-5" />
+                  <LogOut className="size-5" />
                 </TooltipIconButton>
               </div>
             </div>
@@ -397,14 +384,11 @@ export function Thread() {
                 <TooltipIconButton
                   size="lg"
                   className="p-4"
-                  tooltip="Kullanıcı Anahtarı"
+                  tooltip="Sign out"
                   variant="ghost"
-                  onClick={() => {
-                    setBearerTokenInput(bearerToken);
-                    setBearerTokenSheetOpen(true);
-                  }}
+                  onClick={() => void signOut()}
                 >
-                  <KeyRound className="size-5" />
+                  <LogOut className="size-5" />
                 </TooltipIconButton>
                 <TooltipIconButton
                   size="lg"
@@ -577,67 +561,6 @@ export function Thread() {
           </div>
         </div>
       </div>
-      <Sheet
-        open={bearerTokenSheetOpen}
-        onOpenChange={(open) => {
-          setBearerTokenSheetOpen(open);
-          if (open) setBearerTokenInput(bearerToken);
-        }}
-      >
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Kullanıcı Anahtarı</SheetTitle>
-            <SheetDescription>
-              Bu anahtar sayesinde kendinize özel chat sayfasına
-              ulaşabilirsiniz.
-              <br />
-              Test amaçlı buradaysanız test-token anahtarını kullanabilirsiniz.
-            </SheetDescription>
-          </SheetHeader>
-          <form
-            className="flex flex-col gap-4 p-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setBearerToken(bearerTokenInput);
-              setBearerTokenSheetOpen(false);
-              toast.success(
-                "Kullanıcı anahtarı kaydedildi. Sayfa 5 saniye içinde yenilenecektir.",
-              );
-              window.setTimeout(() => window.location.reload(), 5000);
-            }}
-          >
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="bearer-token">Anahtar</Label>
-              <PasswordInput
-                id="bearer-token"
-                name="bearerToken"
-                value={bearerTokenInput}
-                onChange={(event) => setBearerTokenInput(event.target.value)}
-                placeholder="Anahtarı yapıştırabilirsiniz.."
-                autoComplete="off"
-              />
-            </div>
-            <div className="flex justify-between gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setBearerToken("");
-                  setBearerTokenInput("");
-                  setBearerTokenSheetOpen(false);
-                  toast.success(
-                    "Kullanıcı anahtarı silindi. Sayfa 5 saniye içinde yenilenecektir.",
-                  );
-                  window.setTimeout(() => window.location.reload(), 5000);
-                }}
-              >
-                Anahtarı Sil
-              </Button>
-              <Button type="submit">Kaydet</Button>
-            </div>
-          </form>
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }

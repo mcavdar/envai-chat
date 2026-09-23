@@ -4,14 +4,14 @@ export function createClient(
   apiUrl: string,
   apiKey: string | undefined,
   authScheme: string | undefined,
-  bearerToken: string | undefined,
+  accessToken: string | undefined,
 ) {
   return new Client({
     apiKey,
     apiUrl,
     defaultHeaders: {
-      ...(bearerToken && {
-        Authorization: `Bearer ${bearerToken}`,
+      ...(accessToken && {
+        Authorization: `Bearer ${accessToken}`,
       }),
       ...(authScheme && {
         "X-Auth-Scheme": authScheme,

@@ -8,14 +8,3 @@ export function getApiKey(): string | null {
 
   return null;
 }
-
-export function getBearerToken(): string | null {
-  try {
-    if (typeof window === "undefined") return null;
-    return window.localStorage.getItem("lg:chat:bearerToken") ?? null;
-  } catch {
-    // no-op
-  }
-
-  return null;
-}

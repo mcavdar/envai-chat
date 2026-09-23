@@ -1,5 +1,5 @@
 import { validate } from "uuid";
-import { getApiKey, getBearerToken } from "@/lib/api-key";
+import { getApiKey } from "@/lib/api-key";
 import { Thread } from "@langchain/langgraph-sdk";
 import { useQueryState } from "nuqs";
 import {
@@ -12,6 +12,7 @@ import {
   SetStateAction,
 } from "react";
 import { createClient } from "./client";
+import { useAuth } from "./Auth";
 
 interface ThreadContextType {
   getThreads: () => Promise<Thread[]>;
@@ -49,6 +50,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
   });
   const [threads, setThreads] = useState<Thread[]>([]);
   const [threadsLoading, setThreadsLoading] = useState(false);
+  const { accessToken } = useAuth();
 
   const getThreads = useCallback(async (): Promise<Thread[]> => {
     const resolvedAssistantId = assistantId || envAssistantId;
@@ -58,7 +60,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
       apiUrl,
       getApiKey() ?? undefined,
       authScheme || undefined,
-      getBearerToken() ?? undefined,
+      accessToken ?? undefined,
     );
 
     const threads = await client.threads.search({
@@ -76,7 +78,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
     });
 
     return threads;
-  }, [apiUrl, assistantId, authScheme, envAssistantId]);
+  }, [accessToken, apiUrl, assistantId, authScheme, envAssistantId]);
 
   const deleteThread = useCallback(
     async (threadId: string): Promise<void> => {
@@ -88,7 +90,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         apiUrl,
         getApiKey() ?? undefined,
         authScheme || undefined,
-        getBearerToken() ?? undefined,
+        accessToken ?? undefined,
       );
 
       await client.threads.delete(threadId);
@@ -96,7 +98,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         currentThreads.filter((thread) => thread.thread_id !== threadId),
       );
     },
-    [apiUrl, authScheme],
+    [accessToken, apiUrl, authScheme],
   );
 
   const value = {
