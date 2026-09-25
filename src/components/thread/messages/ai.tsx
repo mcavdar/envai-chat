@@ -9,12 +9,15 @@ import { LoadExternalComponent } from "@langchain/langgraph-sdk/react-ui";
 import { cn } from "@/lib/utils";
 import { ToolCalls, ToolResult } from "./tool-calls";
 import { MessageContentComplex } from "@langchain/core/messages";
-import { Fragment } from "react/jsx-runtime";
+import { Fragment, useEffect, useState } from "react";
 import { isAgentInboxInterruptSchema } from "@/lib/agent-inbox-interrupt";
 import { ThreadView } from "../agent-inbox";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { GenericInterruptView } from "./generic-interrupt";
 import { useArtifact } from "../artifact";
+
+import { Writer } from "@/components/writer";
+
 import type {
   BaseStream,
   DefaultToolCall,
@@ -30,9 +33,17 @@ function CustomComponent({
 }) {
   const artifact = useArtifact();
   const { values } = useStreamContext();
-  const customComponents = values.ui?.filter(
-    (ui) => ui.metadata?.message_id === message.id,
+  const [customComponents, setCustomComponents] = useState(
+    () => values.ui?.filter((ui) => ui.metadata?.message_id === message.id) ?? [],
   );
+
+  useEffect(() => {
+    if (values.ui !== undefined) {
+      setCustomComponents(
+        values.ui.filter((ui) => ui.metadata?.message_id === message.id),
+      );
+    }
+  }, [message.id, values.ui]);
 
   if (!customComponents?.length) return null;
   return (
@@ -43,6 +54,7 @@ function CustomComponent({
           stream={thread as unknown as ReturnType<typeof useStream>}
           message={customComponent}
           meta={{ ui: customComponent, artifact }}
+          components={{ Writer }}
         />
       ))}
     </Fragment>
