@@ -3,8 +3,8 @@ services:
     build:
       context: .
       args:
-        NEXT_PUBLIC_API_URL: https://lc.envai.tr
-        NEXT_PUBLIC_ASSISTANT_ID: gemini-live
+        NEXT_PUBLIC_API_URL: https://lg.envai.tr
+        NEXT_PUBLIC_ASSISTANT_ID: mock
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 
