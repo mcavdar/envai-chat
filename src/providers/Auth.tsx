@@ -24,6 +24,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+
 function AuthForm() {
   const supabase = getSupabaseBrowserClient();
   const [isSignUp, setIsSignUp] = useState(false);
@@ -33,10 +34,10 @@ function AuthForm() {
     return (
       <main className="flex min-h-screen items-center justify-center p-6">
         <section className="w-full max-w-md rounded-xl border bg-card p-8 shadow-sm">
-          <h1 className="text-2xl font-semibold">Authentication unavailable</h1>
+          <h1 className="text-2xl font-semibold">Kimlik doğrulama kullanılamıyor</h1>
           <p className="text-muted-foreground mt-2 text-sm">
-            Configure NEXT_PUBLIC_SUPABASE_URL and
-            NEXT_PUBLIC_SUPABASE_ANON_KEY to sign in.
+            Giriş yapmak için NEXT_PUBLIC_SUPABASE_URL ve
+            NEXT_PUBLIC_SUPABASE_ANON_KEY değerlerini yapılandırın.
           </p>
         </section>
       </main>
@@ -49,12 +50,12 @@ function AuthForm() {
         <div className="mb-8">
           <p className="text-muted-foreground text-sm font-medium">Mento Chat</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-            {isSignUp ? "Create your account" : "Welcome back"}
+            {isSignUp ? "Hesabınızı oluşturun" : "Tekrar hoş geldiniz"}
           </h1>
           <p className="text-muted-foreground mt-2 text-sm">
             {isSignUp
-              ? "Create an account to keep your conversations private."
-              : "Sign in to continue to your conversations."}
+              ? "Sohbetlerinizi gizli tutmak için bir hesap oluşturun."
+              : "Sohbetlerinize devam etmek için giriş yapın."}
           </p>
         </div>
         <form
@@ -75,16 +76,16 @@ function AuthForm() {
               return;
             }
             if (isSignUp && !result.data.session) {
-              toast.success("Check your email to confirm your account.");
+              toast.success("Hesabınızı onaylamak için e-postanızı kontrol edin.");
             }
           }}
         >
           <div className="flex flex-col gap-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">E-posta</Label>
             <Input id="email" name="email" type="email" autoComplete="email" required />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Şifre</Label>
             <Input
               id="password"
               name="password"
@@ -95,7 +96,7 @@ function AuthForm() {
             />
           </div>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Working..." : isSignUp ? "Create account" : "Sign in"}
+            {isSubmitting ? "İşleniyor..." : isSignUp ? "Hesap oluştur" : "Giriş yap"}
           </Button>
         </form>
         <button
@@ -103,7 +104,9 @@ function AuthForm() {
           className="text-muted-foreground hover:text-foreground mt-6 w-full text-sm underline-offset-4 hover:underline"
           onClick={() => setIsSignUp((current) => !current)}
         >
-          {isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up"}
+          {isSignUp
+            ? "Zaten bir hesabınız var mı? Giriş yapın"
+            : "Hesabınız yok mu? Kayıt olun"}
         </button>
       </section>
     </main>
@@ -167,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
+    return <div className="flex min-h-screen items-center justify-center">Yükleniyor...</div>;
   }
   if (!session) return <AuthForm />;
 
