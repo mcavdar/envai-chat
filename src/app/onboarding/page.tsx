@@ -2,39 +2,68 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AuthProvider, useAuth } from "@/providers/Auth";
+import { Toaster } from "@/components/ui/sonner";
+import { onboardingGoals } from "@/lib/onboarding";
 
-const goals = [
-  {
-    id: "grades",
-    title: "Notlarımı yükseltmek",
-    description: "Yazılılarda daha iyi olmak istiyorum.",
-  },
-  {
-    id: "gaps",
-    title: "Eksiklerimi kapatmak",
-    description: "Kaçırdığım konuları tamamlamak istiyorum.",
-  },
-  {
-    id: "exam",
-    title: "Sınava hazırlanmak",
-    description: "Yaklaşan bir sınava hazırlanıyorum.",
-  },
-  {
-    id: "improve",
-    title: "Matematikte güçlenmek",
-    description: "Sadece daha iyi olmak istiyorum.",
-  },
-];
-
-export default function OnboardingPage() {
+function OnboardingForm() {
   const router = useRouter();
+  const { fetch: authenticatedFetch } = useAuth();
 
+  const [profileStatus, setProfileStatus] = useState<
+    "checking" | "incomplete" | "error"
+  >("checking");
+  const [profileCheckAttempt, setProfileCheckAttempt] = useState(0);
   const [step, setStep] = useState(1);
   const [grade, setGrade] = useState<number | null>(null);
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkProfile() {
+      setProfileStatus("checking");
+
+      try {
+        const response = await authenticatedFetch("/api/onboarding", {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        if (!response.ok) throw new Error("Unable to check onboarding status");
+
+        const result: unknown = await response.json();
+        if (
+          !result ||
+          typeof result !== "object" ||
+          !("profile" in result)
+        ) {
+          throw new Error("Invalid onboarding status response");
+        }
+
+        if (cancelled) return;
+
+        if (result.profile === null) {
+          setProfileStatus("incomplete");
+        } else if (typeof result.profile === "object") {
+          router.replace("/");
+        } else {
+          throw new Error("Invalid onboarding profile");
+        }
+      } catch {
+        if (!cancelled) setProfileStatus("error");
+      }
+    }
+
+    void checkProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authenticatedFetch, profileCheckAttempt, router]);
 
   function toggleGoal(goal: string) {
     setSelectedGoals((current) =>
@@ -49,24 +78,52 @@ export default function OnboardingPage() {
 
     setSaving(true);
 
-    const response = await fetch("/api/onboarding", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        grade,
-        goals: selectedGoals,
-      }),
-    });
+    try {
+      const response = await authenticatedFetch("/api/onboarding", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          grade,
+          goals: selectedGoals,
+        }),
+      });
 
-    if (!response.ok) {
+      if (!response.ok) {
+        alert("Profil kaydedilemedi. Lütfen tekrar deneyin.");
+        return;
+      }
+
+      router.replace("/");
+    } catch {
+      alert("Profil kaydedilemedi. Lütfen tekrar deneyin.");
+    } finally {
       setSaving(false);
-      alert("Bir hata oluştu.");
-      return;
     }
+  }
 
-    router.push("/chat");
+  if (profileStatus === "checking") {
+    return (
+      <main className="flex min-h-screen items-center justify-center p-8">
+        <p>Profilin kontrol ediliyor...</p>
+      </main>
+    );
+  }
+
+  if (profileStatus === "error") {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
+        <p>Profil kontrol edilemedi. Lütfen tekrar deneyin.</p>
+        <button
+          type="button"
+          onClick={() => setProfileCheckAttempt((attempt) => attempt + 1)}
+          className="rounded-xl bg-black px-6 py-3 text-white"
+        >
+          Tekrar dene
+        </button>
+      </main>
+    );
   }
 
   return (
@@ -114,16 +171,23 @@ export default function OnboardingPage() {
 
       {step === 2 && (
         <section>
+          <button
+            type="button"
+            onClick={() => setStep(1)}
+            className="mb-6 text-sm text-gray-600 hover:text-black"
+          >
+            ← Sınıf seçimine dön
+          </button>
           <h1 className="text-3xl font-bold">
             Matematikte neyi başarmak istiyorsun?
           </h1>
 
           <p className="mt-3 text-gray-500">
-            Birden fazla hedef seçebilirsin.
+            Birden fazla hedefi önem sırasına göre seçebilirsin.
           </p>
 
           <div className="mt-8 grid gap-4 md:grid-cols-2">
-            {goals.map((goal) => {
+            {onboardingGoals.map((goal) => {
               const selected = selectedGoals.includes(goal.id);
 
               return (
@@ -158,5 +222,16 @@ export default function OnboardingPage() {
         </section>
       )}
     </main>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <>
+      <Toaster />
+      <AuthProvider>
+        <OnboardingForm />
+      </AuthProvider>
+    </>
   );
 }

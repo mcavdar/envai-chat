@@ -18,6 +18,7 @@ import { toast } from "sonner";
 
 type AuthContextValue = {
   accessToken: string | null;
+  email: string | null;
   fetch: typeof globalThis.fetch;
   signOut: () => Promise<void>;
 };
@@ -163,10 +164,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const contextValue = useMemo(
     () => ({
       accessToken: session?.access_token ?? null,
+      email: session?.user.email ?? null,
       fetch: authenticatedFetch,
       signOut,
     }),
-    [authenticatedFetch, session?.access_token, signOut],
+    [authenticatedFetch, session?.access_token, session?.user.email, signOut],
   );
 
   if (loading) {

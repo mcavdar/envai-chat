@@ -13,6 +13,7 @@ services:
       - "192.168.1.160:3002:3000"
     environment:
       NODE_ENV: production
+      LANGGRAPH_API_URL: https://lg.envai.tr
     restart: always
     deploy:
       resources:

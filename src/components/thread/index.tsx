@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import { useRouter } from "next/navigation";
 import { ReactNode, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ import {
   XIcon,
   Plus,
   LogOut,
+  UserRound,
 } from "lucide-react";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
@@ -137,6 +139,7 @@ function ConnectedHost({ apiUrl }: { apiUrl: string }) {
 }
 
 export function Thread() {
+  const router = useRouter();
   const [artifactContext, setArtifactContext] = useArtifactContext();
   const [artifactOpen, closeArtifact] = useArtifactOpen();
 
@@ -355,6 +358,15 @@ export function Thread() {
                 <TooltipIconButton
                   size="lg"
                   className="p-4"
+                  tooltip="Profil"
+                  variant="ghost"
+                  onClick={() => router.push("/profile")}
+                >
+                  <UserRound className="size-5" />
+                </TooltipIconButton>
+                <TooltipIconButton
+                  size="lg"
+                  className="p-4"
                   tooltip="Sign out"
                   variant="ghost"
                   onClick={() => void signOut()}
@@ -406,6 +418,15 @@ export function Thread() {
               </div>
 
               <div className="flex items-center gap-4">
+                <TooltipIconButton
+                  size="lg"
+                  className="p-4"
+                  tooltip="Profil"
+                  variant="ghost"
+                  onClick={() => router.push("/profile")}
+                >
+                  <UserRound className="size-5" />
+                </TooltipIconButton>
                 <TooltipIconButton
                   size="lg"
                   className="p-4"
