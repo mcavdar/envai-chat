@@ -5,6 +5,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: https://lg.envai.tr
         NEXT_PUBLIC_ASSISTANT_ID: mock
+        NEXT_PUBLIC_GRAPH_IDS: translation,deep-research,minimax-chat,weather-tool,zai-glm,zai-free-chat,zai-free-vision,factorial-tool,factorial-workflow,math-tutor,human-weather,gemini-live,gemini-chat,gemini-chat-v3,youtube-downloader,gemma-chat,ollama-vision,ocr-reader,claude-chat,mock
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 

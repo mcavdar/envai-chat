@@ -19,6 +19,7 @@ import { LangGraphLogoSVG } from "../icons/langgraph";
 import { TooltipIconButton } from "./tooltip-icon-button";
 import {
   ArrowDown,
+  Bot,
   LoaderCircle,
   PanelRightOpen,
   PanelRightClose,
@@ -48,6 +49,32 @@ import {
   ArtifactTitle,
   useArtifactContext,
 } from "./artifact";
+
+const agentStarterPrompts: Record<string, string> = {
+  translation: "“Good morning, how are you?” cümlesini Türkçeye çevir.",
+  "deep-research":
+    "Yenilenebilir enerjideki son gelişmeleri araştır ve kaynaklarıyla özetle.",
+  "minimax-chat": "Hafta sonu yapabileceğim üç yaratıcı proje fikri öner.",
+  "weather-tool": "İstanbul'da bugün hava nasıl?",
+  "zai-glm": "Merhaba! Bugün nasılsın?",
+  "zai-free-chat": "Bugün öğrenebileceğim ilginç bir şey anlat.",
+  "zai-free-vision": "Bir görsel paylaşacağım; içeriğini açıklayabilir misin?",
+  "factorial-tool": "5 sayısının faktöriyelini hesapla.",
+  "factorial-workflow": "3, 5 ve 7 sayılarının faktöriyellerini hesapla.",
+  "math-tutor":
+    "2x + 5 = 17 denklemini adım adım çözmeme yardım et; cevabı hemen söyleme.",
+  "human-weather": "İstanbul için güncel hava durumunu kontrol et.",
+  "gemini-live": "Yeni bir dil öğrenmek hakkında kısa bir sohbet başlatalım.",
+  "gemini-chat": "Bir dil öğrenirken motivasyonumu korumam için üç öneri ver.",
+  "gemini-chat-v3": "Yapay zekânın eğitimdeki en yararlı üç kullanımını açıkla.",
+  "youtube-downloader":
+    "Bir YouTube videosunu özetlemek istiyorum; bağlantısını paylaşınca yardımcı olur musun?",
+  "gemma-chat": "Bana kısa bir bilmece sor.",
+  "ollama-vision": "Paylaşacağım görselde neler olduğunu açıkla.",
+  "ocr-reader": "Yükleyeceğim görseldeki metni çıkarıp düz metin olarak ver.",
+  "claude-chat": "Bir konuyu net ve dikkatli biçimde düşünmeme yardım et.",
+  mock: "Merhaba! Kendini tanıt ve neler yapabildiğini anlat.",
+};
 
 function StickyToBottomContent(props: {
   content: ReactNode;
@@ -152,6 +179,12 @@ export function Thread() {
     "hideToolCalls",
     parseAsBoolean.withDefault(false),
   );
+  const [authScheme] = useQueryState("authScheme", {
+    defaultValue: process.env.NEXT_PUBLIC_AUTH_SCHEME || "",
+  });
+  const [assistantId] = useQueryState("assistantId", {
+    defaultValue: process.env.NEXT_PUBLIC_ASSISTANT_ID || "",
+  });
   const [input, setInput] = useState("");
   const {
     contentBlocks,
@@ -170,11 +203,22 @@ export function Thread() {
   const { signOut, fetch: authenticatedFetch } = useAuth();
   const messages = stream.messages;
   const isLoading = stream.isLoading;
+  const agentName = assistantId
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+  const starterPrompt =
+    agentStarterPrompts[assistantId] ??
+    "Merhaba! Kendini tanıt ve bana nasıl yardımcı olabileceğini anlat.";
   const [selectedGoalValues, setSelectedGoalValues] = useState<string[]>([]);
   const awaitingOnboarding = stream.values.onboarding?.awaiting;
 
   const lastError = useRef<string | undefined>(undefined);
   const onboardingKickoffStarted = useRef(false);
+  const agentsHref = `/agents?${new URLSearchParams({
+    ...(assistantId ? { assistantId } : {}),
+    ...(authScheme ? { authScheme } : {}),
+  }).toString()}`;
 
   useEffect(() => {
     setSelectedGoalValues([]);
@@ -460,6 +504,15 @@ export function Thread() {
                 <TooltipIconButton
                   size="lg"
                   className="p-4"
+                  tooltip="Asistanlar"
+                  variant="ghost"
+                  onClick={() => router.push(agentsHref)}
+                >
+                  <Bot className="size-5" />
+                </TooltipIconButton>
+                <TooltipIconButton
+                  size="lg"
+                  className="p-4"
                   tooltip="Profil"
                   variant="ghost"
                   onClick={() => router.push("/profile")}
@@ -512,14 +565,28 @@ export function Thread() {
                     width={32}
                     height={32}
                   />
-                  <span className="text-xl font-semibold tracking-tight">
-                    Mento Chat
+                  <span className="flex flex-col items-start leading-tight">
+                    <span className="text-xl font-semibold tracking-tight">
+                      Mento Chat
+                    </span>
+                    <span className="text-muted-foreground text-xs">
+                      {agentName || "Agent"}
+                    </span>
                   </span>
                 </motion.button>
                 <ConnectedHost apiUrl={stream.apiUrl} />
               </div>
 
               <div className="flex items-center gap-4">
+                <TooltipIconButton
+                  size="lg"
+                  className="p-4"
+                  tooltip="Asistanlar"
+                  variant="ghost"
+                  onClick={() => router.push(agentsHref)}
+                >
+                  <Bot className="size-5" />
+                </TooltipIconButton>
                 <TooltipIconButton
                   size="lg"
                   className="p-4"
@@ -639,9 +706,14 @@ export function Thread() {
                   {!chatStarted && (
                     <div className="flex items-center gap-3">
                       <LangGraphLogoSVG className="h-8 flex-shrink-0" />
-                      <h1 className="text-2xl font-semibold tracking-tight">
-                        Mento Chat
-                      </h1>
+                      <div className="flex flex-col items-start leading-tight">
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                          Mento Chat
+                        </h1>
+                        <span className="text-muted-foreground text-xs">
+                          {agentName || "Agent"}
+                        </span>
+                      </div>
                     </div>
                   )}
 
@@ -727,6 +799,18 @@ export function Thread() {
                       </div>
                     </form>
                   </div>
+                  {!chatStarted && (
+                    <div className="mx-auto -mt-4 mb-8 w-full max-w-3xl px-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-auto max-w-full justify-start whitespace-normal text-left"
+                        onClick={() => submitMessage(starterPrompt)}
+                      >
+                        {starterPrompt}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               }
             />
