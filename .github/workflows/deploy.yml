@@ -37,6 +37,7 @@ jobs:
             NEXT_PUBLIC_ASSISTANT_ID=${{ vars.NEXT_PUBLIC_ASSISTANT_ID }}
             NEXT_PUBLIC_SUPABASE_URL=${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
             NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_GRAPH_IDS=${{ vars.NEXT_PUBLIC_GRAPH_IDS }}
 
       - name: Deploy to Home Server
         uses: appleboy/ssh-action@v1
