@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { LoaderCircle, PanelRightOpen, PanelRightClose, Trash2 } from "lucide-react";
 
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { DO_NOT_RENDER_ID_PREFIX } from "@/lib/ensure-tool-responses";
 
 function ThreadList({
   threads,
@@ -74,8 +75,17 @@ function ThreadList({
           Array.isArray(t.values.messages) &&
           t.values.messages?.length > 0
         ) {
-          const firstMessage = t.values.messages[0];
-          itemText = getContentString(firstMessage.content);
+          const firstVisibleMessage = t.values.messages.find(
+            (message) =>
+              typeof message === "object" &&
+              message !== null &&
+              (!("id" in message) ||
+                typeof message.id !== "string" ||
+                !message.id.startsWith(DO_NOT_RENDER_ID_PREFIX)),
+          );
+          if (firstVisibleMessage) {
+            itemText = getContentString(firstVisibleMessage.content);
+          }
         }
         return (
           <div

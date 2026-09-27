@@ -167,11 +167,89 @@ export function Thread() {
   const isLargeScreen = useMediaQuery("(min-width: 1024px)");
 
   const stream = useStreamContext();
-  const { signOut } = useAuth();
+  const { signOut, fetch: authenticatedFetch } = useAuth();
   const messages = stream.messages;
   const isLoading = stream.isLoading;
+  const [selectedGoalValues, setSelectedGoalValues] = useState<string[]>([]);
+  const awaitingOnboarding = stream.values.onboarding?.awaiting;
 
   const lastError = useRef<string | undefined>(undefined);
+  const onboardingKickoffStarted = useRef(false);
+
+  useEffect(() => {
+    setSelectedGoalValues([]);
+  }, [awaitingOnboarding, threadId]);
+
+  useEffect(() => {
+    if (
+      threadId ||
+      messages.length > 0 ||
+      isLoading ||
+      onboardingKickoffStarted.current
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function startOnboardingIfNeeded() {
+      try {
+        const response = await authenticatedFetch("/api/onboarding", {
+          method: "GET",
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error("Unable to check onboarding status");
+
+        const result: unknown = await response.json();
+        if (
+          !result ||
+          typeof result !== "object" ||
+          !("profile" in result)
+        ) {
+          throw new Error("Invalid onboarding status response");
+        }
+
+        if (cancelled || result.profile !== null) return;
+
+        onboardingKickoffStarted.current = true;
+        const kickoffMessage: Message = {
+          id: `${DO_NOT_RENDER_ID_PREFIX}${uuidv4()}`,
+          type: "human",
+          content: [
+            {
+              type: "text",
+              text: "Start the first-time onboarding conversation in Turkish. Briefly welcome the student, then ask one question at a time to learn whether they are in grade 9 or 10 and which math goals matter to them: improve grades, fill learning gaps, prepare for an exam, or improve generally. Do not assume answers or ask for information already provided. Guide the conversation naturally and do not begin tutoring until onboarding is complete.",
+            },
+          ],
+        };
+        const context = { onboarding: true };
+
+        stream.submit(
+          { messages: [kickoffMessage], context },
+          {
+            streamMode: ["values"],
+            streamSubgraphs: true,
+            streamResumable: true,
+            optimisticValues: (previous) => ({
+              ...previous,
+              context,
+              messages: [...(previous.messages ?? []), kickoffMessage],
+            }),
+          },
+        );
+      } catch {
+        if (!cancelled) {
+          toast.error("Onboarding durumu kontrol edilemedi.");
+        }
+      }
+    }
+
+    void startOnboardingIfNeeded();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authenticatedFetch, isLoading, messages.length, stream.submit, threadId]);
 
   const setThreadId = (id: string | null) => {
     _setThreadId(id);
@@ -223,9 +301,8 @@ export function Thread() {
     prevMessageLength.current = messages.length;
   }, [messages]);
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    if ((input.trim().length === 0 && contentBlocks.length === 0) || isLoading)
+  const submitMessage = (text: string) => {
+    if ((text.trim().length === 0 && contentBlocks.length === 0) || isLoading)
       return;
     setFirstTokenReceived(false);
 
@@ -233,7 +310,7 @@ export function Thread() {
       id: uuidv4(),
       type: "human",
       content: [
-        ...(input.trim().length > 0 ? [{ type: "text", text: input }] : []),
+        ...(text.trim().length > 0 ? [{ type: "text", text }] : []),
         ...contentBlocks,
       ] as Message["content"],
     };
@@ -265,6 +342,11 @@ export function Thread() {
     setContentBlocks([]);
   };
 
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    submitMessage(input);
+  };
+
   const handleRegenerate = (
     parentCheckpoint: Checkpoint | null | undefined,
   ) => {
@@ -283,6 +365,26 @@ export function Thread() {
   const hasNoAIOrToolMessages = !messages.find(
     (m) => m.type === "ai" || m.type === "tool",
   );
+  const visibleMessages = messages.filter(
+    (message) => !message.id?.startsWith(DO_NOT_RENDER_ID_PREFIX),
+  );
+  const onboardingChoices = Array.isArray(
+    stream.values.onboarding?.choices,
+  )
+    ? stream.values.onboarding.choices.filter(
+        (choice) =>
+          typeof choice?.label === "string" &&
+          typeof choice.value === "string",
+      )
+    : [];
+
+  const toggleGoalChoice = (value: string) => {
+    setSelectedGoalValues((current) =>
+      current.includes(value)
+        ? current.filter((selected) => selected !== value)
+        : [...current, value],
+    );
+  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -461,24 +563,62 @@ export function Thread() {
               contentClassName="pt-8 pb-16 max-w-3xl mx-auto flex flex-col gap-4 w-full"
               content={
                 <>
-                  {messages
-                    .filter((m) => !m.id?.startsWith(DO_NOT_RENDER_ID_PREFIX))
-                    .map((message, index) =>
-                      message.type === "human" ? (
-                        <HumanMessage
-                          key={message.id || `${message.type}-${index}`}
-                          message={message}
-                          isLoading={isLoading}
-                        />
-                      ) : (
-                        <AssistantMessage
-                          key={message.id || `${message.type}-${index}`}
-                          message={message}
-                          isLoading={isLoading}
-                          handleRegenerate={handleRegenerate}
-                        />
-                      ),
-                    )}
+                  {visibleMessages.map((message, index) =>
+                    message.type === "human" ? (
+                      <HumanMessage
+                        key={message.id || `${message.type}-${index}`}
+                        message={message}
+                        isLoading={isLoading}
+                      />
+                    ) : (
+                      <AssistantMessage
+                        key={message.id || `${message.type}-${index}`}
+                        message={message}
+                        isLoading={isLoading}
+                        handleRegenerate={handleRegenerate}
+                      />
+                    ),
+                  )}
+                  {onboardingChoices.length > 0 && !isLoading && (
+                    <div className="flex flex-wrap gap-3 pl-10">
+                      {onboardingChoices.map((choice) => (
+                        <Button
+                          key={choice.value}
+                          type="button"
+                          variant={
+                            awaitingOnboarding === "goals" &&
+                            selectedGoalValues.includes(choice.value)
+                              ? "default"
+                              : "outline"
+                          }
+                          aria-pressed={
+                            awaitingOnboarding === "goals"
+                              ? selectedGoalValues.includes(choice.value)
+                              : undefined
+                          }
+                          onClick={() =>
+                            awaitingOnboarding === "goals"
+                              ? toggleGoalChoice(choice.value)
+                              : submitMessage(choice.value)
+                          }
+                        >
+                          {choice.label}
+                        </Button>
+                      ))}
+                      {awaitingOnboarding === "goals" && (
+                        <Button
+                          type="button"
+                          disabled={selectedGoalValues.length === 0}
+                          onClick={() => {
+                            submitMessage(selectedGoalValues.join(", "));
+                            setSelectedGoalValues([]);
+                          }}
+                        >
+                          Tamamla
+                        </Button>
+                      )}
+                    </div>
+                  )}
                   {/* Special rendering case where there are no AI/tool messages, but there is an interrupt.
                     We need to render it outside of the messages list, since there are no messages to render */}
                   {hasNoAIOrToolMessages && !!stream.interrupt && (

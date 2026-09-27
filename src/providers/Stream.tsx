@@ -29,7 +29,19 @@ import { useAuth } from "./Auth";
 import { useThreads } from "./Thread";
 import { toast } from "sonner";
 
-export type StateType = { messages: Message[]; ui?: UIMessage[] };
+export type OnboardingChoice = { label: string; value: string };
+
+export type OnboardingState = {
+  status: "in_progress" | "complete";
+  awaiting: "grade" | "goals" | null;
+  choices: OnboardingChoice[];
+};
+
+export type StateType = {
+  messages: Message[];
+  ui?: UIMessage[];
+  onboarding?: OnboardingState;
+};
 
 const useTypedStream = useStream<
   StateType,
