@@ -2,15 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useQueryState } from "nuqs";
 import { ArrowLeft, ArrowRight, Bot, LoaderCircle, RefreshCw } from "lucide-react";
 import type { Assistant } from "@langchain/langgraph-sdk";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth } from "@/providers/Auth";
 import { createClient } from "@/providers/client";
-import { getApiKey } from "@/lib/api-key";
-import { resolveApiUrl } from "@/lib/resolve-api-url";
+import { useLangGraphConfig } from "@/lib/use-langgraph-config";
 
 const PAGE_SIZE = 100;
 const configuredGraphIds = (process.env.NEXT_PUBLIC_GRAPH_IDS || "")
@@ -19,23 +17,17 @@ const configuredGraphIds = (process.env.NEXT_PUBLIC_GRAPH_IDS || "")
   .filter(Boolean);
 
 function AgentDirectory() {
-  const envApiUrl = process.env.NEXT_PUBLIC_API_URL;
-  const envAuthScheme = process.env.NEXT_PUBLIC_AUTH_SCHEME;
-  const [apiUrl] = useQueryState("apiUrl", {
-    defaultValue: envApiUrl || "",
-  });
-  const [authScheme] = useQueryState("authScheme", {
-    defaultValue: envAuthScheme || "",
-  });
-  const [currentAssistantId] = useQueryState("assistantId", {
-    defaultValue: process.env.NEXT_PUBLIC_ASSISTANT_ID || "",
-  });
+  const {
+    finalApiUrl,
+    finalAssistantId,
+    finalAuthScheme,
+    apiKey,
+  } = useLangGraphConfig();
   const { accessToken } = useAuth();
   const [assistants, setAssistants] = useState<Assistant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const finalApiUrl = resolveApiUrl(apiUrl, envApiUrl);
   const agents = new Map(
     configuredGraphIds.map((graphId) => [
       graphId,
@@ -67,8 +59,8 @@ function AgentDirectory() {
       try {
         const client = createClient(
           finalApiUrl,
-          getApiKey(finalApiUrl) ?? undefined,
-          authScheme || undefined,
+          apiKey || undefined,
+          finalAuthScheme || undefined,
           accessToken ?? undefined,
         );
         const results: Assistant[] = [];
@@ -99,11 +91,11 @@ function AgentDirectory() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, authScheme, finalApiUrl, loadAttempt]);
+  }, [accessToken, apiKey, finalApiUrl, finalAuthScheme, loadAttempt]);
 
   function chatHref(assistantId: string) {
     const params = new URLSearchParams({ assistantId });
-    if (authScheme) params.set("authScheme", authScheme);
+    if (finalAuthScheme) params.set("authScheme", finalAuthScheme);
     return `/?${params.toString()}`;
   }
 
@@ -111,7 +103,7 @@ function AgentDirectory() {
     <main className="min-h-screen px-5 py-8 sm:px-8">
       <div className="mx-auto max-w-4xl">
         <Link
-          href={chatHref(currentAssistantId || "")}
+          href={chatHref(finalAssistantId || "")}
           className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-sm"
         >
           <ArrowLeft className="size-4" />
@@ -167,7 +159,7 @@ function AgentDirectory() {
             )}
             <ul className="divide-y">
             {agentList.map((agent) => {
-              const selected = agent.id === currentAssistantId;
+              const selected = agent.id === finalAssistantId;
               return (
                 <li key={agent.id}>
                   <Link

@@ -13,20 +13,7 @@ import {
   type OnboardingGoalId,
   type OnboardingProfile,
 } from "@/lib/onboarding";
-
-function isOnboardingProfile(value: unknown): value is OnboardingProfile {
-  if (!value || typeof value !== "object" || !("grade" in value) || !("goals" in value)) {
-    return false;
-  }
-
-  return (
-    (value.grade === 9 || value.grade === 10) &&
-    Array.isArray(value.goals) &&
-    value.goals.every((goal) =>
-      onboardingGoals.some((knownGoal) => knownGoal.id === goal),
-    )
-  );
-}
+import { fetchOnboardingProfile } from "@/lib/onboarding-api";
 
 function ProfileForm() {
   const router = useRouter();
@@ -45,30 +32,18 @@ function ProfileForm() {
       setLoading(true);
 
       try {
-        const response = await authenticatedFetch("/api/onboarding", {
-          method: "GET",
-          cache: "no-store",
-        });
-        if (!response.ok) throw new Error("Unable to load profile");
-
-        const result: unknown = await response.json();
-        if (!result || typeof result !== "object" || !("profile" in result)) {
-          throw new Error("Invalid profile response");
-        }
+        const loadedProfile = await fetchOnboardingProfile(authenticatedFetch);
 
         if (cancelled) return;
 
-        if (result.profile === null) {
+        if (loadedProfile === null) {
           router.replace("/onboarding");
           return;
         }
-        if (!isOnboardingProfile(result.profile)) {
-          throw new Error("Invalid profile data");
-        }
 
-        setProfile(result.profile);
-        setGrade(result.profile.grade);
-        setSelectedGoals(result.profile.goals);
+        setProfile(loadedProfile);
+        setGrade(loadedProfile.grade);
+        setSelectedGoals(loadedProfile.goals);
       } catch {
         if (!cancelled) toast.error("Profil yüklenemedi. Lütfen tekrar deneyin.");
       } finally {

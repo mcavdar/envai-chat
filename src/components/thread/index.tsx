@@ -1,39 +1,30 @@
-import { v4 as uuidv4 } from "uuid";
 import { useRouter } from "next/navigation";
-import { ReactNode, useEffect, useRef } from "react";
+import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useStreamContext } from "@/providers/Stream";
 import { useAuth } from "@/providers/Auth";
-import { useState, FormEvent } from "react";
 import { Button } from "../ui/button";
-import { Label } from "../ui/label";
-import { Checkpoint, Message } from "@langchain/langgraph-sdk";
 import { AssistantMessage, AssistantMessageLoading } from "./messages/ai";
 import { HumanMessage } from "./messages/human";
-import {
-  DO_NOT_RENDER_ID_PREFIX,
-  ensureToolCallsHaveResponses,
-} from "@/lib/ensure-tool-responses";
+import { DO_NOT_RENDER_ID_PREFIX } from "@/lib/ensure-tool-responses";
 import { LangGraphLogoSVG } from "../icons/langgraph";
 import { TooltipIconButton } from "./tooltip-icon-button";
 import {
   ArrowDown,
   Bot,
-  LoaderCircle,
   PanelRightOpen,
   PanelRightClose,
   SquarePen,
   XIcon,
-  Plus,
   LogOut,
   UserRound,
 } from "lucide-react";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 import ThreadHistory from "./history";
-import { toast } from "sonner";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useChatController } from "@/hooks/use-chat-controller";
 import { GitHubSVG } from "../icons/github";
 import {
   Tooltip,
@@ -42,7 +33,7 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import { useFileUpload } from "@/hooks/use-file-upload";
-import { ContentBlocksPreview } from "./ContentBlocksPreview";
+import { ChatComposer } from "./ChatComposer";
 import {
   useArtifactOpen,
   ArtifactContent,
@@ -185,8 +176,6 @@ export function Thread() {
   const [assistantId] = useQueryState("assistantId", {
     defaultValue: process.env.NEXT_PUBLIC_ASSISTANT_ID || "",
   });
-  const [outcomeCode, setOutcomeCode] = useQueryState("outcomeCode");
-  const [input, setInput] = useState("");
   const {
     contentBlocks,
     setContentBlocks,
@@ -197,13 +186,27 @@ export function Thread() {
     dragOver,
     handlePaste,
   } = useFileUpload();
-  const [firstTokenReceived, setFirstTokenReceived] = useState(false);
   const isLargeScreen = useMediaQuery("(min-width: 1024px)");
 
   const stream = useStreamContext();
-  const { signOut, fetch: authenticatedFetch } = useAuth();
+  const { signOut } = useAuth();
   const messages = stream.messages;
   const isLoading = stream.isLoading;
+  const {
+    input,
+    setInput,
+    firstTokenReceived,
+    selectedGoalValues,
+    setSelectedGoalValues,
+    submitMessage,
+    handleSubmit,
+    handleRegenerate,
+    toggleGoalChoice,
+  } = useChatController({
+    threadId,
+    artifactContext,
+    upload: { contentBlocks, setContentBlocks },
+  });
   const agentName = assistantId
     .split("-")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -211,93 +214,12 @@ export function Thread() {
   const starterPrompt =
     agentStarterPrompts[assistantId] ??
     "Merhaba! Kendini tanıt ve bana nasıl yardımcı olabileceğini anlat.";
-  const [selectedGoalValues, setSelectedGoalValues] = useState<string[]>([]);
   const awaitingOnboarding = stream.values.onboarding?.awaiting;
 
-  const lastError = useRef<string | undefined>(undefined);
-  const onboardingKickoffStarted = useRef(false);
-  const hasOutcomeCode = useRef(outcomeCode !== null);
-  const outcomeCodeSubmitted = useRef(false);
   const agentsHref = `/agents?${new URLSearchParams({
     ...(assistantId ? { assistantId } : {}),
     ...(authScheme ? { authScheme } : {}),
   }).toString()}`;
-
-  useEffect(() => {
-    setSelectedGoalValues([]);
-  }, [awaitingOnboarding, threadId]);
-
-  useEffect(() => {
-    if (
-      threadId ||
-      messages.length > 0 ||
-      isLoading ||
-      hasOutcomeCode.current ||
-      onboardingKickoffStarted.current
-    ) {
-      return;
-    }
-
-    let cancelled = false;
-
-    async function startOnboardingIfNeeded() {
-      try {
-        const response = await authenticatedFetch("/api/onboarding", {
-          method: "GET",
-          cache: "no-store",
-        });
-        if (!response.ok) throw new Error("Unable to check onboarding status");
-
-        const result: unknown = await response.json();
-        if (
-          !result ||
-          typeof result !== "object" ||
-          !("profile" in result)
-        ) {
-          throw new Error("Invalid onboarding status response");
-        }
-
-        if (cancelled || result.profile !== null) return;
-
-        onboardingKickoffStarted.current = true;
-        const kickoffMessage: Message = {
-          id: `${DO_NOT_RENDER_ID_PREFIX}${uuidv4()}`,
-          type: "human",
-          content: [
-            {
-              type: "text",
-              text: "Start the first-time onboarding conversation in Turkish. Briefly welcome the student, then ask one question at a time to learn whether they are in grade 9 or 10 and which math goals matter to them: improve grades, fill learning gaps, prepare for an exam, or improve generally. Do not assume answers or ask for information already provided. Guide the conversation naturally and do not begin tutoring until onboarding is complete.",
-            },
-          ],
-        };
-        const context = { onboarding: true };
-
-        stream.submit(
-          { messages: [kickoffMessage], context },
-          {
-            streamMode: ["values"],
-            streamSubgraphs: true,
-            streamResumable: true,
-            optimisticValues: (previous) => ({
-              ...previous,
-              context,
-              messages: [...(previous.messages ?? []), kickoffMessage],
-            }),
-          },
-        );
-      } catch {
-        if (!cancelled) {
-          toast.error("Onboarding durumu kontrol edilemedi.");
-        }
-      }
-    }
-
-    void startOnboardingIfNeeded();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [authenticatedFetch, isLoading, messages.length, stream.submit, threadId]);
 
   const setThreadId = (id: string | null) => {
     _setThreadId(id);
@@ -305,124 +227,6 @@ export function Thread() {
     // close artifact and reset artifact context
     closeArtifact();
     setArtifactContext({});
-  };
-
-  useEffect(() => {
-    if (!stream.error) {
-      lastError.current = undefined;
-      return;
-    }
-    try {
-      const message = (stream.error as any).message;
-      if (!message || lastError.current === message) {
-        // Message has already been logged. do not modify ref, return early.
-        return;
-      }
-
-      // Message is defined, and it has not been logged yet. Save it, and send the error
-      lastError.current = message;
-      toast.error("An error occurred. Please try again.", {
-        description: (
-          <p>
-            <strong>Error:</strong> <code>{message}</code>
-          </p>
-        ),
-        richColors: true,
-        closeButton: true,
-      });
-    } catch {
-      // no-op
-    }
-  }, [stream.error]);
-
-  // TODO: this should be part of the useStream hook
-  const prevMessageLength = useRef(0);
-  useEffect(() => {
-    if (
-      messages.length !== prevMessageLength.current &&
-      messages?.length &&
-      messages[messages.length - 1].type === "ai"
-    ) {
-      setFirstTokenReceived(true);
-    }
-
-    prevMessageLength.current = messages.length;
-  }, [messages]);
-
-  const submitMessage = (text: string) => {
-    if ((text.trim().length === 0 && contentBlocks.length === 0) || isLoading)
-      return;
-    setFirstTokenReceived(false);
-
-    const newHumanMessage: Message = {
-      id: uuidv4(),
-      type: "human",
-      content: [
-        ...(text.trim().length > 0 ? [{ type: "text", text }] : []),
-        ...contentBlocks,
-      ] as Message["content"],
-    };
-
-    const toolMessages = ensureToolCallsHaveResponses(stream.messages);
-
-    const context =
-      Object.keys(artifactContext).length > 0 ? artifactContext : undefined;
-
-    stream.submit(
-      { messages: [...toolMessages, newHumanMessage], context },
-      {
-        streamMode: ["values"],
-        streamSubgraphs: true,
-        streamResumable: true,
-        optimisticValues: (prev) => ({
-          ...prev,
-          context,
-          messages: [
-            ...(prev.messages ?? []),
-            ...toolMessages,
-            newHumanMessage,
-          ],
-        }),
-      },
-    );
-
-    setInput("");
-    setContentBlocks([]);
-  };
-
-  useEffect(() => {
-    if (
-      !outcomeCode ||
-      threadId ||
-      messages.length > 0 ||
-      isLoading ||
-      outcomeCodeSubmitted.current
-    ) {
-      return;
-    }
-
-    outcomeCodeSubmitted.current = true;
-    submitMessage(`/explain ${outcomeCode}`);
-    void setOutcomeCode(null, { history: "replace" });
-  }, [isLoading, messages.length, outcomeCode, setOutcomeCode, submitMessage, threadId]);
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    submitMessage(input);
-  };
-
-  const handleRegenerate = (
-    parentCheckpoint: Checkpoint | null | undefined,
-  ) => {
-    // Do this so the loading state is correct
-    prevMessageLength.current = prevMessageLength.current - 1;
-    setFirstTokenReceived(false);
-    stream.submit(undefined, {
-      checkpoint: parentCheckpoint,
-      streamMode: ["values"],
-      streamSubgraphs: true,
-      streamResumable: true,
-    });
   };
 
   const chatStarted = !!threadId || !!messages.length;
@@ -441,14 +245,6 @@ export function Thread() {
           typeof choice.value === "string",
       )
     : [];
-
-  const toggleGoalChoice = (value: string) => {
-    setSelectedGoalValues((current) =>
-      current.includes(value)
-        ? current.filter((selected) => selected !== value)
-        : [...current, value],
-    );
-  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -739,98 +535,24 @@ export function Thread() {
 
                   <ScrollToBottom className="animate-in fade-in-0 zoom-in-95 absolute bottom-full left-1/2 mb-4 -translate-x-1/2" />
 
-                  <div
-                    ref={dropRef}
-                    className={cn(
-                      "bg-muted relative z-10 mx-auto mb-8 w-full max-w-3xl rounded-2xl shadow-xs transition-all",
-                      dragOver
-                        ? "border-primary border-2 border-dotted"
-                        : "border border-solid",
-                    )}
-                  >
-                    <form
-                      onSubmit={handleSubmit}
-                      className="mx-auto grid max-w-3xl grid-rows-[1fr_auto] gap-2"
-                    >
-                      <ContentBlocksPreview
-                        blocks={contentBlocks}
-                        onRemove={removeBlock}
-                      />
-                      <textarea
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onPaste={handlePaste}
-                        onKeyDown={(e) => {
-                          if (
-                            e.key === "Enter" &&
-                            !e.shiftKey &&
-                            !e.metaKey &&
-                            !e.nativeEvent.isComposing
-                          ) {
-                            e.preventDefault();
-                            const el = e.target as HTMLElement | undefined;
-                            const form = el?.closest("form");
-                            form?.requestSubmit();
-                          }
-                        }}
-                        placeholder="Mesajınızı yazın..."
-                        className="field-sizing-content resize-none border-none bg-transparent p-3.5 pb-0 shadow-none ring-0 outline-none focus:ring-0 focus:outline-none"
-                      />
-
-                      <div className="flex items-center gap-6 p-2 pt-4">
-                        <Label
-                          htmlFor="file-input"
-                          className="flex cursor-pointer items-center gap-2"
-                        >
-                          <Plus className="size-5 text-gray-600" />
-                          <span className="text-sm text-gray-600">
-                            Dosya Yükle
-                          </span>
-                        </Label>
-                        <input
-                          id="file-input"
-                          type="file"
-                          onChange={handleFileUpload}
-                          multiple
-                          accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
-                          className="hidden"
-                        />
-                        {stream.isLoading ? (
-                          <Button
-                            key="stop"
-                            onClick={() => stream.stop()}
-                            className="ml-auto"
-                          >
-                            <LoaderCircle className="h-4 w-4 animate-spin" />
-                            Cancel
-                          </Button>
-                        ) : (
-                          <Button
-                            type="submit"
-                            className="ml-auto shadow-md transition-all"
-                            disabled={
-                              isLoading ||
-                              (!input.trim() && contentBlocks.length === 0)
-                            }
-                          >
-                            Gönder
-                          </Button>
-                        )}
-                      </div>
-                    </form>
-                  </div>
-                  {!chatStarted && (
-                    <div className="mx-auto -mt-4 mb-8 w-full max-w-3xl px-4">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-auto max-w-full justify-start whitespace-normal text-left"
-                        onClick={() => submitMessage(starterPrompt)}
-                      >
-                        {starterPrompt}
-                      </Button>
-                    </div>
-                  )}
+                  <ChatComposer
+                    input={input}
+                    onInputChange={setInput}
+                    onSubmit={handleSubmit}
+                    onStop={() => stream.stop()}
+                    onStarterPrompt={() => submitMessage(starterPrompt)}
+                    isLoading={isLoading}
+                    chatStarted={chatStarted}
+                    starterPrompt={starterPrompt}
+                    upload={{
+                      contentBlocks,
+                      removeBlock,
+                      handleFileUpload,
+                      dropRef,
+                      dragOver,
+                      handlePaste,
+                    }}
+                  />
                 </div>
               }
             />

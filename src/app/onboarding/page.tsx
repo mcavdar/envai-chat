@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/providers/Auth";
 import { Toaster } from "@/components/ui/sonner";
 import { onboardingGoals } from "@/lib/onboarding";
+import { fetchOnboardingProfile } from "@/lib/onboarding-api";
 
 function OnboardingForm() {
   const router = useRouter();
@@ -28,30 +29,14 @@ function OnboardingForm() {
       setProfileStatus("checking");
 
       try {
-        const response = await authenticatedFetch("/api/onboarding", {
-          method: "GET",
-          cache: "no-store",
-        });
-
-        if (!response.ok) throw new Error("Unable to check onboarding status");
-
-        const result: unknown = await response.json();
-        if (
-          !result ||
-          typeof result !== "object" ||
-          !("profile" in result)
-        ) {
-          throw new Error("Invalid onboarding status response");
-        }
+        const profile = await fetchOnboardingProfile(authenticatedFetch);
 
         if (cancelled) return;
 
-        if (result.profile === null) {
+        if (profile === null) {
           setProfileStatus("incomplete");
-        } else if (typeof result.profile === "object") {
-          router.replace("/");
         } else {
-          throw new Error("Invalid onboarding profile");
+          router.replace("/");
         }
       } catch {
         if (!cancelled) setProfileStatus("error");
