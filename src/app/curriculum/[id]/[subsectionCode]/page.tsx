@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Circle, Lightbulb, Sigma } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Circle, Lightbulb, Sigma, Sparkles } from "lucide-react";
 import { AuthProvider, useAuth } from "@/providers/Auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -104,6 +104,9 @@ function CurriculumContent() {
   const previous = activeIndex > 0 ? ordered[activeIndex - 1] : null;
   const next = activeIndex >= 0 && activeIndex < ordered.length - 1 ? ordered[activeIndex + 1] : null;
   const subsectionHref = (code: string) => `/curriculum/${encodeURIComponent(data.id)}/${encodeURIComponent(code)}`;
+  const tutorHref = (outcome: Outcome) => {
+    return `/?${new URLSearchParams({ assistantId: "math-tutor", outcomeCode: outcome.code })}`;
+  };
 
   return (
     <main className="min-h-screen bg-muted/30">
@@ -183,6 +186,9 @@ function CurriculumContent() {
                         <span className="inline-flex rounded-md bg-secondary px-2.5 py-1 text-xs font-medium">{outcome.code}</span>
                         <CardTitle className="mt-3 text-base leading-7 sm:text-lg">{outcome.description}</CardTitle>
                       </div>
+                      <Button asChild size="sm" variant="outline" className="shrink-0">
+                        <Link href={tutorHref(outcome)}><Sparkles />Konuyu açıkla</Link>
+                      </Button>
                     </div>
                   </CardHeader>
                   {outcome.notes.length > 0 && (

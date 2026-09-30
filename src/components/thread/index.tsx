@@ -185,6 +185,7 @@ export function Thread() {
   const [assistantId] = useQueryState("assistantId", {
     defaultValue: process.env.NEXT_PUBLIC_ASSISTANT_ID || "",
   });
+  const [outcomeCode, setOutcomeCode] = useQueryState("outcomeCode");
   const [input, setInput] = useState("");
   const {
     contentBlocks,
@@ -215,6 +216,8 @@ export function Thread() {
 
   const lastError = useRef<string | undefined>(undefined);
   const onboardingKickoffStarted = useRef(false);
+  const hasOutcomeCode = useRef(outcomeCode !== null);
+  const outcomeCodeSubmitted = useRef(false);
   const agentsHref = `/agents?${new URLSearchParams({
     ...(assistantId ? { assistantId } : {}),
     ...(authScheme ? { authScheme } : {}),
@@ -229,6 +232,7 @@ export function Thread() {
       threadId ||
       messages.length > 0 ||
       isLoading ||
+      hasOutcomeCode.current ||
       onboardingKickoffStarted.current
     ) {
       return;
@@ -385,6 +389,22 @@ export function Thread() {
     setInput("");
     setContentBlocks([]);
   };
+
+  useEffect(() => {
+    if (
+      !outcomeCode ||
+      threadId ||
+      messages.length > 0 ||
+      isLoading ||
+      outcomeCodeSubmitted.current
+    ) {
+      return;
+    }
+
+    outcomeCodeSubmitted.current = true;
+    submitMessage(`/explain ${outcomeCode}`);
+    void setOutcomeCode(null, { history: "replace" });
+  }, [isLoading, messages.length, outcomeCode, setOutcomeCode, submitMessage, threadId]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
