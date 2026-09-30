@@ -54,7 +54,7 @@ function CustomComponent({
           stream={thread as unknown as ReturnType<typeof useStream>}
           message={customComponent}
           meta={{ ui: customComponent, artifact }}
-          components={{ Writer }}
+          //components={{ Writer }}
         />
       ))}
     </Fragment>
