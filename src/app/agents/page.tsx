@@ -34,13 +34,13 @@ function AgentDirectory() {
       { id: graphId, name: graphId, description: graphId },
     ]),
   );
-  for (const assistant of assistants) {
+/*   for (const assistant of assistants) {
     agents.set(assistant.assistant_id, {
       id: assistant.assistant_id,
       name: assistant.name || assistant.graph_id,
       description: assistant.description || assistant.assistant_id,
     });
-  }
+  } */
   const agentList = Array.from(agents.values());
 
   useEffect(() => {
