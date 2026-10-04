@@ -1,4 +1,5 @@
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ import {
   XIcon,
   LogOut,
   UserRound,
+  ChevronDown,
 } from "lucide-react";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
@@ -153,6 +155,26 @@ function ConnectedHost({ apiUrl }: { apiUrl: string }) {
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
+  );
+}
+
+function CurriculumMenu() {
+  return (
+    <details className="relative">
+      <summary className="flex h-10 cursor-pointer list-none items-center justify-center gap-1 rounded-md px-2 text-sm hover:bg-gray-100 [&::-webkit-details-marker]:hidden">
+        Dersler
+        <ChevronDown className="size-4" />
+        <span className="sr-only">Ders menüsünü aç</span>
+      </summary>
+      <div className="bg-popover text-popover-foreground absolute top-full right-0 z-50 mt-1 min-w-40 rounded-md border p-1 shadow-md">
+        <Link
+          className="hover:bg-accent hover:text-accent-foreground block rounded-sm px-3 py-2 text-sm"
+          href="https://chat.envai.tr/curriculum/07c2c96c-d271-40c8-a216-9dd9aca5a64c/9.1.1"
+        >
+          Matematik 9. Sınıf
+        </Link>
+      </div>
+    </details>
   );
 }
 
@@ -317,6 +339,7 @@ export function Thread() {
                 )}
               </div>
               <div className="absolute top-2 right-4 flex items-center gap-2">
+                <CurriculumMenu />
                 <TooltipIconButton
                   size="lg"
                   className="p-4"
@@ -394,6 +417,7 @@ export function Thread() {
               </div>
 
               <div className="flex items-center gap-4">
+                <CurriculumMenu />
                 <TooltipIconButton
                   size="lg"
                   className="p-4"
