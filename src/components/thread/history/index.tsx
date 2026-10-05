@@ -27,8 +27,9 @@ function ThreadList({
 }) {
   const [threadId, setThreadId] = useQueryState("threadId");
 
-  const { deleteThread } = useThreads();
+  const { deleteThread, deleteAllThreads } = useThreads();
   const [deletingThreadId, setDeletingThreadId] = useState<string | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   const handleDelete = async (
     event: MouseEvent<HTMLButtonElement>,
@@ -63,9 +64,57 @@ function ThreadList({
     }
   };
 
+  const handleDeleteAll = async () => {
+    if (
+      deletingThreadId ||
+      isDeletingAll ||
+      !window.confirm("Tüm konuşmaları silmek istediğinize emin misiniz?")
+    ) {
+      return;
+    }
+
+    setIsDeletingAll(true);
+    try {
+      const { deletedThreadIds, failedCount } = await deleteAllThreads();
+      if (threadId && deletedThreadIds.includes(threadId)) {
+        await setThreadId(null);
+      }
+
+      if (failedCount > 0) {
+        toast.error(`${failedCount} konuşma silinemedi.`, {
+          description: "Lütfen başarısız olan konuşmaları yeniden deneyin.",
+        });
+      } else {
+        toast.success("Tüm konuşmalar silindi.");
+      }
+    } catch (error) {
+      console.error("Konuşmalar silinemedi.", error);
+      toast.error("Konuşmalar silinemedi.", {
+        description: "Hata oluştu. Lütfen sistem yöneticisine bilgi veriniz.",
+      });
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
 
   return (
     <div className="flex h-full w-full flex-col items-start justify-start gap-2 overflow-y-scroll [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-track]:bg-transparent">
+      {threads.length > 0 && (
+        <Button
+          variant="ghost"
+          className="w-full justify-start text-muted-foreground hover:text-destructive"
+          disabled={deletingThreadId !== null || isDeletingAll}
+          onClick={handleDeleteAll}
+        >
+          {isDeletingAll ? (
+            <LoaderCircle className="animate-spin" />
+          ) : (
+            <Trash2 />
+          )}
+          Tümünü sil
+        </Button>
+      )}
       {threads.map((t) => {
         let itemText = t.thread_id;
         if (
@@ -110,7 +159,7 @@ function ThreadList({
               className="size-9 shrink-0 text-muted-foreground hover:text-destructive"
               aria-label={`Konuşma sil ${itemText}`}
               title="Konuşma sil"
-              disabled={deletingThreadId !== null}
+              disabled={deletingThreadId !== null || isDeletingAll}
               onClick={(event) => handleDelete(event, t.thread_id)}
             >
               {deletingThreadId === t.thread_id ? (
