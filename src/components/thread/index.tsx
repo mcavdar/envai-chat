@@ -173,6 +173,12 @@ function CurriculumMenu() {
         >
           Matematik 9. Sınıf
         </Link>
+        <Link
+          className="hover:bg-accent hover:text-accent-foreground block rounded-sm px-3 py-2 text-sm"
+          href="https://chat.envai.tr/curriculum/07c2c96c-d271-40c8-a216-9dd9aca5a64c/10.1.1"
+        >
+          Matematik 10. Sınıf
+        </Link>
       </div>
     </details>
   );
