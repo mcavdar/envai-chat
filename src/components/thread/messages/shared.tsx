@@ -128,6 +128,7 @@ export function CommandBar({
   threadId,
   apiUrl,
   authScheme,
+  createdAt,
 }: {
   content: string;
   isHumanMessage?: boolean;
@@ -141,6 +142,7 @@ export function CommandBar({
   threadId?: string | null;
   apiUrl?: string;
   authScheme?: string;
+  createdAt?: Date;
 }) {
   if (isHumanMessage && isAiMessage) {
     throw new Error(
@@ -203,14 +205,27 @@ export function CommandBar({
         disabled={isLoading}
       />
       {isAiMessage && !!handleRegenerate && (
-        <TooltipIconButton
-          disabled={isLoading}
-          tooltip="Tekrar üret"
-          variant="ghost"
-          onClick={handleRegenerate}
-        >
-          <RefreshCcw />
-        </TooltipIconButton>
+        <>
+          <TooltipIconButton
+            disabled={isLoading}
+            tooltip="Tekrar üret"
+            variant="ghost"
+            onClick={handleRegenerate}
+          >
+            <RefreshCcw />
+          </TooltipIconButton>
+          {createdAt && (
+            <time
+              dateTime={createdAt.toISOString()}
+              className="text-muted-foreground text-xs"
+            >
+              {new Intl.DateTimeFormat(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              }).format(createdAt)}
+            </time>
+          )}
+        </>
       )}
       {showEdit && (
         <TooltipIconButton

@@ -24,6 +24,36 @@ import type {
   BagTemplate
 } from "@langchain/langgraph-sdk";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getMessageCreatedAt(message: Message | undefined): Date | undefined {
+  if (!message) return undefined;
+
+  const candidates: unknown[] = [];
+  if ("created_at" in message) candidates.push(message.created_at);
+  if (
+    "response_metadata" in message &&
+    isRecord(message.response_metadata)
+  ) {
+    candidates.push(message.response_metadata.created_at);
+  }
+  if ("additional_kwargs" in message && isRecord(message.additional_kwargs)) {
+    candidates.push(message.additional_kwargs.created_at);
+  }
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string" && typeof candidate !== "number") {
+      continue;
+    }
+    const date = new Date(candidate);
+    if (!Number.isNaN(date.getTime())) return date;
+  }
+
+  return undefined;
+}
+
 function CustomComponent({
   message,
   thread,
@@ -240,6 +270,7 @@ export function AssistantMessage({
                 threadId={threadId ?? null}
                 apiUrl={apiUrl || undefined}
                 authScheme={authScheme || undefined}
+                createdAt={getMessageCreatedAt(message)}
               />
             </div>
           </>
