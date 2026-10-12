@@ -43,3 +43,10 @@
 .markdown-content tr:nth-child(even) {
   background-color: #f9f9f9;
 }
+
+.markdown-content .mermaid-diagram svg {
+  display: block;
+  height: auto;
+  margin-inline: auto;
+  max-width: 100%;
+}

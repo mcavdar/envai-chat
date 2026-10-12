@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
-import { FC, memo, useState } from "react";
+import { FC, memo, useEffect, useId, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { SyntaxHighlighter } from "@/components/thread/syntax-highlighter";
 
@@ -19,6 +19,77 @@ interface CodeHeaderProps {
   language?: string;
   code: string;
 }
+
+let mermaidPromise: Promise<typeof import("mermaid").default> | undefined;
+
+const getMermaid = () => {
+  mermaidPromise ??= import("mermaid").then(({ default: mermaid }) => {
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+    });
+    return mermaid;
+  });
+  return mermaidPromise;
+};
+
+const MermaidDiagram: FC<{ chart: string }> = ({ chart }) => {
+  const id = useId().replaceAll(":", "");
+  const [result, setResult] = useState<{
+    chart: string;
+    svg?: string;
+    error?: true;
+  } | null>(null);
+  const currentResult = result?.chart === chart ? result : null;
+
+  useEffect(() => {
+    let active = true;
+
+    getMermaid()
+      .then((mermaid) => mermaid.render(`mermaid-${id}`, chart))
+      .then(({ svg: renderedSvg }) => {
+        if (active) setResult({ chart, svg: renderedSvg });
+      })
+      .catch((cause: unknown) => {
+        console.error("Failed to render Mermaid diagram", cause);
+        if (active) setResult({ chart, error: true });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [chart, id]);
+
+  return (
+    <figure className="my-5">
+      {currentResult?.svg ? (
+        <div
+          className="mermaid-diagram bg-background overflow-x-auto rounded-lg border p-4"
+          role="img"
+          aria-label="Mermaid diagram"
+          dangerouslySetInnerHTML={{ __html: currentResult.svg }}
+        />
+      ) : currentResult?.error ? (
+        <div
+          className="border-destructive/50 rounded-lg border p-4"
+          role="alert"
+        >
+          <p className="text-destructive mb-2 text-sm">
+            Diagram could not be rendered. Mermaid source:
+          </p>
+          <pre className="overflow-x-auto whitespace-pre-wrap">{chart}</pre>
+        </div>
+      ) : (
+        <div
+          className="text-muted-foreground rounded-lg border p-4 text-sm"
+          role="status"
+        >
+          Rendering diagram…
+        </div>
+      )}
+    </figure>
+  );
+};
 
 const useCopyToClipboard = ({
   copiedDuration = 3000,
@@ -175,40 +246,40 @@ const defaultComponents: any = {
       {...props}
     />
   ),
-a: ({
-  className,
-  href,
-  children,
-  ...props
-}: {
-  className?: string;
-  href?: string;
-  children?: React.ReactNode;
-}) => {
-  const videoId = getYouTubeVideoId(href);
+  a: ({
+    className,
+    href,
+    children,
+    ...props
+  }: {
+    className?: string;
+    href?: string;
+    children?: React.ReactNode;
+  }) => {
+    const videoId = getYouTubeVideoId(href);
 
-  if (videoId) {
+    if (videoId) {
+      return (
+        <YouTubeEmbed
+          videoId={videoId}
+          title={String(children ?? "YouTube video")}
+        />
+      );
+    }
+
     return (
-      <YouTubeEmbed
-        videoId={videoId}
-        title={String(children ?? "YouTube video")}
-      />
+      <a
+        href={href}
+        className={cn(
+          "text-primary font-medium underline underline-offset-4",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </a>
     );
-  }
-
-  return (
-    <a
-      href={href}
-      className={cn(
-        "text-primary font-medium underline underline-offset-4",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </a>
-  );
-},
+  },
   blockquote: ({ className, ...props }: { className?: string }) => (
     <blockquote
       className={cn("border-l-2 pl-6 italic", className)}
@@ -297,6 +368,10 @@ a: ({
     if (match) {
       const language = match[1];
       const code = String(children).replace(/\n$/, "");
+
+      if (language.toLowerCase() === "mermaid") {
+        return <MermaidDiagram chart={code} />;
+      }
 
       return (
         <>
