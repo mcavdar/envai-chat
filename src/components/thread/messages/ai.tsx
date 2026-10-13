@@ -220,7 +220,9 @@ export function AssistantMessage({
           <>
             {contentString.length > 0 && (
               <div className="py-1">
-                <MarkdownText>{contentString}</MarkdownText>
+                <MarkdownText className="text-[15px] [&_p]:leading-6">
+                  {contentString}
+                </MarkdownText>
               </div>
             )}
 

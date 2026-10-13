@@ -400,9 +400,12 @@ const defaultComponents: any = {
   },
 };
 
-const MarkdownTextImpl: FC<{ children: string }> = ({ children }) => {
+const MarkdownTextImpl: FC<{ children: string; className?: string }> = ({
+  children,
+  className,
+}) => {
   return (
-    <div className="markdown-content">
+    <div className={cn("markdown-content", className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
